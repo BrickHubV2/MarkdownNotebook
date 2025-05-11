@@ -14,11 +14,12 @@ jobs:
     name: Test (Python ${{ matrix.python-version }}, ${{ matrix.os }})
     runs-on: ${{ matrix.os }}
     strategy:
-      fail-fast: false # Don't cancel other jobs in the matrix if one fails
+      fail-fast: false
       matrix:
         os: [ubuntu-latest, windows-latest, macos-latest]
-        python-version: ["3.9", "3.10", "3.11", "3.12"] # Test against relevant Python versions
-        # You can exclude specific combinations if they are not supported or problematic
+        python-version: ["3.9", "3.10", "3.11", "3.12"]
+        # If you find specific combinations problematic after fixing core issues,
+        # you can use 'exclude' here.
         # exclude:
         #   - os: macos-latest
         #     python-version: "3.9"
@@ -35,50 +36,65 @@ jobs:
     - name: Cache pip dependencies
       uses: actions/cache@v4
       with:
-        path: ~/.cache/pip # Path to cache pip data
-        key: ${{ runner.os }}-pip-${{ hashFiles('**/requirements.txt') }}
+        path: ~/.cache/pip
+        key: ${{ runner.os }}-pip-${{ matrix.python-version }}-${{ hashFiles('**/requirements.txt') }}
         restore-keys: |
-          ${{ runner.os }}-pip-
+          ${{ runner.os }}-pip-${{ matrix.python-version }}-
 
-    - name: Install system dependencies (Linux for PyQt6)
+    - name: Install system dependencies (Linux for Qt/GUI)
       if: runner.os == 'Linux'
       run: |
         sudo apt-get update -q
+        echo "Installing Linux system dependencies for Qt..."
         sudo apt-get install -y -q --no-install-recommends \
-          libgl1-mesa-glx libegl1-mesa libxkbcommon-x11-0 \
-          libxcb-icccm4 libxcb-image0 libxcb-keysyms1 libxcb-randr0 \
-          libxcb-render-util0 libxcb-shm0 libxcb-xinerama0 libxcb-xfixes0 \
+          libgl1 libegl1 \
+          # Common Qt runtime dependencies
+          libxkbcommon-x11-0 libxcb-icccm4 libxcb-image0 \
+          libxcb-keysyms1 libxcb-randr0 libxcb-render-util0 \
+          libxcb-shm0 libxcb-xinerama0 libxcb-xfixes0 \
           libxcb-shape0 libxcb-xinput0 libfontconfig1 libfreetype6 \
           libx11-xcb1 libxi6 libsm6 libice6 libglib2.0-0 \
-          # Add xvfb if you plan to run GUI tests that need a display
+          # For headless testing if GUI components are instantiated
           xvfb
+        echo "System dependencies installation complete."
+
 
     - name: Install Python dependencies
       run: |
         python -m pip install --upgrade pip
+        echo "Installing packages from requirements.txt..."
         pip install -r requirements.txt
-        # Install linters or other dev dependencies if not in requirements.txt
-        # For example, if you want to use flake8 for linting:
-        pip install flake8 flake8-pyqt # flake8-pyqt is useful for PyQt projects
+        echo "Installing Flake8 and Flake8-Qt (if not in requirements.txt)..."
+        # Add flake8 and flake8-qt to your requirements.txt for consistency
+        # If they are already there, this pip install command might be redundant or just confirm versions
+        pip install flake8 flake8-qt # Using flake8-qt
+        echo "Python dependencies installation complete."
 
     - name: Lint with Flake8
       run: |
-        # stop the build if there are Python syntax errors or undefined names
-        flake8 . --count --select=E9,F63,F7,F82 --show-source --statistics
-        # exit-zero treats all errors as warnings. The GitHub editor is often 127 chars wide
-        flake8 . --count --exit-zero --max-complexity=12 --max-line-length=119 --statistics
-      # Continue on error for linting if you prefer it not to fail the build immediately
+        echo "Running Flake8 linting..."
+        # Critical errors (syntax, undefined names) - fail build
+        flake8 MarkdownNotebook/ tests/ --count --select=E9,F63,F7,F82 --show-source --statistics
+        # Other style checks (informational or fail based on your preference)
+        # Consider setting --exit-zero if you want this part to be informational
+        # Or remove --exit-zero to make these errors also fail the build
+        flake8 MarkdownNotebook/ tests/ --count --max-complexity=12 --max-line-length=119 --statistics --exit-zero
+        echo "Flake8 linting complete."
+      # To make the entire linting step informational if it fails:
       # continue-on-error: true
 
     - name: Run tests with unittest
+      env:
+        QT_QPA_PLATFORM: offscreen # Recommended for headless Qt operation
       run: |
-        # On Linux, if your tests were to instantiate GUI components,
-        # you might need to run them under xvfb-run for a virtual display.
-        # Your current tests (file_manager, search) are backend and shouldn't need this.
-        # If future GUI tests are added:
-        # if [ "$RUNNER_OS" == "Linux" ]; then
-        #   xvfb-run python -m unittest discover -s tests -p "test_*.py"
-        # else
-        #   python -m unittest discover -s tests -p "test_*.py"
-        # fi
-        python -m unittest discover -s tests -p "test_*.py"
+        echo "Running unittests..."
+        # On Linux, xvfb-run is good if tests instantiate visible GUI components.
+        # Your current tests are backend, so 'offscreen' platform might be enough.
+        if [ "$RUNNER_OS" == "Linux" ]; then
+          echo "Running tests on Linux with xvfb-run..."
+          xvfb-run -a python -m unittest discover -s tests -p "test_*.py"
+        else
+          echo "Running tests on ${{ runner.os }}..."
+          python -m unittest discover -s tests -p "test_*.py"
+        fi
+        echo "Unittests complete."
