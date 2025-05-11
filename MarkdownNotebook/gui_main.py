@@ -8,7 +8,9 @@ import os
 from PyQt6.QtWidgets import (
     QApplication, QMainWindow, QWidget, QVBoxLayout, QHBoxLayout,
     QListWidget, QListWidgetItem, QSplitter, QStatusBar, QMessageBox,
-    QFileDialog, QInputDialog, QToolBar, QLabel
+    QFileDialog, QInputDialog, QToolBar, QLabel,
+    QLineEdit, QPushButton, QComboBox, QSpinBox, QDialogButtonBox,
+    QDialog
 )
 from PyQt6.QtGui import QAction, QIcon, QKeySequence
 from PyQt6.QtCore import Qt, QSize, pyqtSignal
