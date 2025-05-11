@@ -1,10 +1,5 @@
-# GUI Toolkit (choose one and uncomment, or add your choice)
-PyQt6
-# tkinter # Built-in, no separate install
-# kivy
-# wxpython
-
-# Core Dependencies
+PyQt6>=6.5.0 # Or your specific version
 markdown
 pygments
-PyYAML          # For parsing YAML front-matter
+PyYAML
+flake8
