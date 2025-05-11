@@ -2,7 +2,7 @@ name: Markdown Notebook CI
 
 on:
   push:
-    branches: [ "main", "develop" ] # Adjust to your main development branches
+    branches: [ "main", "develop" ]
   pull_request:
     branches: [ "main", "develop" ]
 
@@ -18,11 +18,6 @@ jobs:
       matrix:
         os: [ubuntu-latest, windows-latest, macos-latest]
         python-version: ["3.9", "3.10", "3.11", "3.12"]
-        # If you find specific combinations problematic after fixing core issues,
-        # you can use 'exclude' here.
-        # exclude:
-        #   - os: macos-latest
-        #     python-version: "3.9"
 
     steps:
     - name: Checkout code
@@ -47,27 +42,37 @@ jobs:
         sudo apt-get update -q
         echo "Installing Linux system dependencies for Qt..."
         sudo apt-get install -y -q --no-install-recommends \
-          libgl1 libegl1 \
-          # Common Qt runtime dependencies
-          libxkbcommon-x11-0 libxcb-icccm4 libxcb-image0 \
-          libxcb-keysyms1 libxcb-randr0 libxcb-render-util0 \
-          libxcb-shm0 libxcb-xinerama0 libxcb-xfixes0 \
-          libxcb-shape0 libxcb-xinput0 libfontconfig1 libfreetype6 \
-          libx11-xcb1 libxi6 libsm6 libice6 libglib2.0-0 \
-          # For headless testing if GUI components are instantiated
+          libgl1 \
+          libegl1 \
+          libxkbcommon-x11-0 \
+          libxcb-icccm4 \
+          libxcb-image0 \
+          libxcb-keysyms1 \
+          libxcb-randr0 \
+          libxcb-render-util0 \
+          libxcb-shm0 \
+          libxcb-xinerama0 \
+          libxcb-xfixes0 \
+          libxcb-shape0 \
+          libxcb-xinput0 \
+          libfontconfig1 \
+          libfreetype6 \
+          libx11-xcb1 \
+          libxi6 \
+          libsm6 \
+          libice6 \
+          libglib2.0-0 \
           xvfb
         echo "System dependencies installation complete."
-
 
     - name: Install Python dependencies
       run: |
         python -m pip install --upgrade pip
         echo "Installing packages from requirements.txt..."
-        pip install -r requirements.txt
-        echo "Installing Flake8 and Flake8-Qt (if not in requirements.txt)..."
-        # Add flake8 and flake8-qt to your requirements.txt for consistency
-        # If they are already there, this pip install command might be redundant or just confirm versions
-        pip install flake8 flake8-qt # Using flake8-qt
+        pip install -r requirements.txt # Ensure flake8 is in requirements.txt
+        # If flake8 is not in requirements.txt, uncomment the line below
+        # echo "Installing Flake8..."
+        # pip install flake8 
         echo "Python dependencies installation complete."
 
     - name: Lint with Flake8
@@ -75,21 +80,15 @@ jobs:
         echo "Running Flake8 linting..."
         # Critical errors (syntax, undefined names) - fail build
         flake8 MarkdownNotebook/ tests/ --count --select=E9,F63,F7,F82 --show-source --statistics
-        # Other style checks (informational or fail based on your preference)
-        # Consider setting --exit-zero if you want this part to be informational
-        # Or remove --exit-zero to make these errors also fail the build
+        # Other style checks
         flake8 MarkdownNotebook/ tests/ --count --max-complexity=12 --max-line-length=119 --statistics --exit-zero
         echo "Flake8 linting complete."
-      # To make the entire linting step informational if it fails:
-      # continue-on-error: true
 
     - name: Run tests with unittest
       env:
         QT_QPA_PLATFORM: offscreen # Recommended for headless Qt operation
       run: |
         echo "Running unittests..."
-        # On Linux, xvfb-run is good if tests instantiate visible GUI components.
-        # Your current tests are backend, so 'offscreen' platform might be enough.
         if [ "$RUNNER_OS" == "Linux" ]; then
           echo "Running tests on Linux with xvfb-run..."
           xvfb-run -a python -m unittest discover -s tests -p "test_*.py"
